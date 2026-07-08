@@ -1,0 +1,39 @@
+{
+  "name": "sense",
+  "version": "1.0.0",
+  "description": "多模态 AI 桥接技能。让文本 AI 调用多模态 AI 理解图片、音频、视频，支持多轮对话会话管理。",
+  "compatible_agents": [
+    {
+      "agent": "opencode",
+      "versions": ["latest"]
+    },
+    {
+      "agent": "claude",
+      "versions": ["latest"]
+    },
+    {
+      "agent": "cursor",
+      "versions": ["latest"]
+    },
+    {
+      "agent": "cline",
+      "versions": ["latest"]
+    }
+  ],
+  "skill_categories": ["Multimodal", "Vision", "Audio", "Video", "Bridge"],
+  "trigger_phrases": [
+    "analyze image",
+    "describe picture",
+    "transcribe audio",
+    "analyze video",
+    "multimodal AI",
+    "image understanding",
+    "audio understanding",
+    "video understanding",
+    "分析图片",
+    "描述图片",
+    "分析音频",
+    "分析视频",
+    "多模态"
+  ]
+}
