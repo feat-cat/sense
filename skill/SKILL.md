@@ -68,7 +68,7 @@ pip install requests
 在项目根目录（或 skill 目录下）创建 `.env` 文件，参考 `.env.example`：
 
 ```bash
-# 复制配置模板
+# 复制配置模板（在 skill 目录下执行）
 cp .env.example .env
 # 或 (Windows)
 copy .env.example .env
@@ -142,13 +142,16 @@ copy .env.example .env
 
 ## 使用方法
 
-所有操作通过 `bridge.py` 脚本完成。以下是 AI 使用本 skill 时的标准模式：
+所有操作通过 `bridge.py` 脚本完成（在 `skill/` 目录下执行）。以下是 AI 使用本 skill 时的标准模式：
 
 ### 1. 创建新对话（分析文件）
 
-当用户上传图片/音频/视频并要求分析时：
+当用户上传图片/音频/视频并要求分析时，先进入 skill 目录再执行：
 
 ```bash
+# 进入 skill 目录
+cd skill
+
 # 分析单张图片
 python bridge.py new --prompt "描述这张图片的内容" --file photo.jpg
 
@@ -214,6 +217,8 @@ python bridge.py delete --all
 python bridge.py status
 ```
 
+> 以上命令均在 `skill/` 目录下执行。也可以直接在 repo 根目录执行 `python skill/bridge.py <command> ...`。
+
 ---
 
 ## 关键约束说明
@@ -268,7 +273,8 @@ python bridge.py status
 ### 流程
 
 1. **检查 `.env` 是否已配置**
-   - 如果未配置，引导用户参考 `.env.example` 进行配置
+   - 如果未配置，引导用户参考 `skill/.env.example` 进行配置
+   - 在 `skill/` 目录下执行 `cp .env.example .env` 创建配置
    - 可以用 `python bridge.py status` 快速验证
 
 2. **使用 `new` 命令开启新对话**
@@ -313,11 +319,15 @@ python bridge.py status
 
 ```
 sense/
-├── SKILL.md          ← 本文件（AI 使用指引）
-├── bridge.py          ← 核心 Python 脚本
-├── .env.example       ← 配置模板
-├── .env               ← 实际配置（用户创建，已 gitignore）
+├── skill/
+│   ├── SKILL.md       ← 本文件（AI 使用指引）
+│   ├── bridge.py       ← 核心 Python 脚本
+│   └── .env.example    ← 配置模板
+├── .env               ← 实际配置（用户创建，在 skill/ 目录下执行 cp .env.example .env）
 ├── .gitignore
+├── README.md
+├── LICENSE
+├── agent-skills.json
 └── conversations/     ← 对话数据（自动生成）
 ```
 
