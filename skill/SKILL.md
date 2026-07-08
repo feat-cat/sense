@@ -57,13 +57,25 @@ tags:
 
 ## 前置条件
 
-### 1. 安装依赖
+### 1. 安装 CLI（推荐）
+
+```bash
+npm i -g sense-cli
+```
+
+也可以直接用 npx（无需安装）：
+
+```bash
+npx sense-cli <command> ...
+```
+
+### 2. 安装 Python 依赖
 
 ```bash
 pip install requests
 ```
 
-### 2. 配置 `.env`
+### 3. 配置 `.env`
 
 在本 skill 目录下创建 `.env` 文件，参考 `.env.example`：
 
@@ -142,21 +154,27 @@ copy .env.example .env
 
 ## 使用方法
 
-所有操作通过 `bridge.py` 脚本完成。AI 在执行命令前，应先 **cd 到本 skill 目录**（即 SKILL.md 和 bridge.py 所在目录），然后直接运行 `python bridge.py <command>`。
+优先使用 `sense` CLI 命令（需安装 `npm i -g sense-cli`），从任意目录直接调用。如未安装 CLI，可 `cd` 到本 skill 目录后用 `python bridge.py <command>`。
 
 ### 1. 创建新对话（分析文件）
 
 当用户上传图片/音频/视频并要求分析时：
 
 ```bash
-# 先 cd 到本 skill 目录（SKILL.md 所在目录），再执行：
-python bridge.py new --prompt "描述这张图片的内容" --file photo.jpg
+# 推荐：用 sense 命令（从任意目录执行）
+sense new --prompt "描述这张图片的内容" --file photo.jpg
+
+# 也可用 npx（无需安装）
+npx sense-cli new --prompt "描述这张图片的内容" --file photo.jpg
+
+# 或用 Python 直接调用
+# cd <skill目录> && python bridge.py new --prompt "..." --file photo.jpg
 
 # 分析多个文件（需 SINGLE_FILE_ONLY=false）
-python bridge.py new --prompt "对比这两张图片" --file img1.jpg img2.jpg
+sense new --prompt "对比这两张图片" --file img1.jpg img2.jpg
 
 # 仅文本对话（不上传文件）
-python bridge.py new --prompt "你好，请介绍一下你自己"
+sense new --prompt "你好，请介绍一下你自己"
 ```
 
 返回结果示例：
@@ -178,10 +196,10 @@ python bridge.py new --prompt "你好，请介绍一下你自己"
 
 ```bash
 # 继续对话（不传新文件）
-python bridge.py continue <session_id> --prompt "画面里的人物在做什么？"
+sense continue <session_id> --prompt "画面里的人物在做什么？"
 
 # 继续对话（上传新文件）
-python bridge.py continue <session_id> --prompt "这张图里有什么不同？" --file new_angle.jpg
+sense continue <session_id> --prompt "这张图里有什么不同？" --file new_angle.jpg
 ```
 
 > **注意**: 如果 `SINGLE_FILE_ONLY=true`，已包含文件的对话无法再上传新文件。
@@ -189,29 +207,29 @@ python bridge.py continue <session_id> --prompt "这张图里有什么不同？"
 ### 3. 查看所有对话
 
 ```bash
-python bridge.py list
+sense list
 ```
 
 ### 4. 查看某个对话的完整历史
 
 ```bash
-python bridge.py get <session_id>
+sense get <session_id>
 ```
 
 ### 5. 删除对话
 
 ```bash
 # 删除指定对话
-python bridge.py delete <session_id>
+sense delete <session_id>
 
 # 清空所有对话
-python bridge.py delete --all
+sense delete --all
 ```
 
 ### 6. 查看当前配置状态
 
 ```bash
-python bridge.py status
+sense status
 ```
 
 ---
@@ -269,8 +287,7 @@ python bridge.py status
 
 1. **检查 `.env` 是否已配置**
    - 如果未配置，引导用户参考 `.env.example` 进行配置
-   - 在本 skill 目录下执行 `cp .env.example .env` 创建配置
-   - 可以用 `python bridge.py status` 快速验证
+   - 执行 `sense status` 快速验证，如果报错则引导用户创建 `.env`
 
 2. **使用 `new` 命令开启新对话**
    - 每次用户提出新的分析需求，使用 `new`
@@ -288,24 +305,24 @@ python bridge.py status
 
 ```
 用户: 分析这张图片 （上传了 1 张图）
-你:  使用 python bridge.py new --prompt "分析这张图片" --file image.jpg
+你:  使用 sense new --prompt "分析这张图片" --file image.jpg
      → 得到 session_id 和 AI 回复
 
 用户: 再看看这张 （上传了第 2 张图）
 你:  由于当前模型设置为 SINGLE_FILE_ONLY=true，每个对话全程只能分析一个文件。
      你需要开启一个新的对话来分析这张新图片。
-     使用 python bridge.py new --prompt "分析这张图片" --file image2.jpg
+     使用 sense new --prompt "分析这张图片" --file image2.jpg
 ```
 
 ### 处理 `SINGLE_FILE_ONLY=false` 的对话示例
 
 ```
 用户: 对比这两张图片 （上传了 2 张图）
-你:  使用 python bridge.py new --prompt "对比这两张图片" --file img1.jpg img2.jpg
+你:  使用 sense new --prompt "对比这两张图片" --file img1.jpg img2.jpg
      → 得到 session_id
 
 用户: 再放大看看这个细节 （上传了 1 张新图）
-你:  使用 python bridge.py continue <session_id> --prompt "放大看这个细节" --file detail.jpg
+你:  使用 sense continue <session_id> --prompt "放大看这个细节" --file detail.jpg
 ```
 
 ---
@@ -321,6 +338,23 @@ sense/
 ├── .env.example        ← 配置模板
 ├── .env                ← 实际配置（用户创建，cp .env.example .env）
 └── conversations/      ← 对话数据（自动生成）
+```
+
+Repo 完整结构（含 CLI）：
+
+```
+feat-cat/sense/
+├── skill/              ← skill 本体（npx skills add 安装的目录）
+│   ├── SKILL.md
+│   ├── bridge.py
+│   └── .env.example
+├── cli/                ← npm CLI（npm i -g sense-cli）
+│   ├── bin/sense.js
+│   └── package.json
+├── README.md
+├── LICENSE
+├── .gitignore
+└── agent-skills.json
 ```
 
 ## 数据存储

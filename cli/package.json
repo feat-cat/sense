@@ -1,0 +1,21 @@
+{
+  "name": "sense-cli",
+  "version": "1.0.0",
+  "description": "多模态 AI 桥接 CLI — 命令行调用多模态 AI 理解图片、音频、视频",
+  "bin": {
+    "sense": "./bin/sense.js"
+  },
+  "files": [
+    "bin"
+  ],
+  "keywords": ["multimodal", "vision", "audio", "video", "ai", "sense", "bridge"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/feat-cat/sense.git",
+    "directory": "cli"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
