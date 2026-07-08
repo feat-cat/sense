@@ -55,6 +55,19 @@ tags:
     └──→ ffmpeg 转码为标准格式 ──→ audio.mp3 ← 作为 input_audio 发送
 ```
 
+## 两种使用方式
+
+本 skill 提供两种调用方式，AI 可根据环境选择：
+
+| 方式 | 命令 | 安装要求 | 适用场景 |
+|------|------|----------|----------|
+| **CLI（推荐）** | `sense new --file photo.jpg` | `npm i -g sense-cli` | 任意目录直接调用，最方便 |
+| **Python 直调** | `python bridge.py new --file photo.jpg` | `pip install requests` | 未安装 npm 时，需 cd 到 skill 目录 |
+
+**优先使用 CLI 方式**（`sense <command>`），AI 不需要知道文件路径，从任何目录都能运行。
+
+---
+
 ## 前置条件
 
 ### 1. 安装 CLI（推荐）
