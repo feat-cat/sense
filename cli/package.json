@@ -1,6 +1,6 @@
 {
   "name": "@feat-cat/sense",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "多模态 AI 桥接 CLI — 命令行调用多模态 AI 理解图片、音频、视频",
   "bin": {
     "sense": "bin/sense.js"
