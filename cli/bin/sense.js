@@ -47,13 +47,28 @@ function main() {
   const bridgePy = findBridgePy();
 
   if (!bridgePy) {
-    console.error('❌ 找不到 bridge.py');
     console.error('');
-    console.error('  请确保 sense skill 已安装:');
+    console.error('  ╔══════════════════════════════════════════════════════════╗');
+    console.error('  ║  找不到 bridge.py — 需要安装 sense skill              ║');
+    console.error('  ╚══════════════════════════════════════════════════════════╝');
+    console.error('');
+    console.error('  @feat-cat/sense 是 CLI 外壳，还需要安装 skill 本体:');
+    console.error('');
     console.error('    npx skills add feat-cat/sense');
     console.error('');
-    console.error('  或用 SENSE_BRIDGE 环境变量指定路径:');
+    console.error('  或在项目目录安装 skill 到本地 .agents/skills/sense/');
+    console.error('  完整安装后结构:');
+    console.error('    .agents/skills/sense/');
+    console.error('    ├── SKILL.md');
+    console.error('    ├── bridge.py');
+    console.error('    └── .env.example');
+    console.error('');
+    console.error('  或用 SENSE_BRIDGE 环境变量手动指定 bridge.py 路径:');
+    console.error('    # PowerShell');
+    console.error('    $env:SENSE_BRIDGE = "D:\\path\\to\\bridge.py"');
+    console.error('    # CMD');
     console.error('    set SENSE_BRIDGE=D:\\path\\to\\bridge.py');
+    console.error('');
     process.exit(1);
   }
 
@@ -77,9 +92,12 @@ function main() {
     process.exit(0);
   }
 
-  const python = process.platform === 'win32' ? 'python' : 'python3';
+  // Windows: 优先用 py 启动器，再 fallback 到 python
+  // Unix: python3 优先
+  const pythonCmd = process.platform === 'win32' ? 'py' : 'python3';
+  const pythonArgs = process.platform === 'win32' ? ['-3', bridgePy, ...args] : [bridgePy, ...args];
 
-  const child = spawn(python, [bridgePy, ...args], {
+  const child = spawn(pythonCmd, pythonArgs, {
     cwd: skillDir,
     stdio: 'inherit',
     env: { ...process.env }

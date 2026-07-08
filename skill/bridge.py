@@ -16,6 +16,7 @@ import os
 import sys
 import json
 import re
+import copy
 import uuid
 import base64
 import argparse
@@ -217,7 +218,8 @@ def load_config():
         print("  警告: API_KEY 看起来还是示例值！")
         print("!" * 60)
         print()
-        print(f"  当前值: {api_key}")
+        masked = api_key[:6] + '****' if len(api_key) > 10 else '****'
+        print(f"  当前值: {masked}")
         print()
         print("  请修改 .env 中的 API_KEY 为真实的 API 密钥。")
         print("=" * 60)
@@ -310,10 +312,10 @@ def extract_video_frames(video_path):
 
     output_pattern = str(session_temp / 'frame_%04d.jpg')
 
-    # Windows 兼容的 filter 表达式：逗号用反斜杠转义，防止被 ffmpeg 当作 filter 分隔符
+    # 用 floor() 替代 min() 避免 filter 表达式内的逗号转义问题
     filter_expr = (
         f"fps=1/{interval},"
-        f"scale=min({max_width}\\,iw):-2"
+        f"scale='if(gt(iw,{max_width}),{max_width},iw)':-2"
     )
 
     try:
@@ -446,9 +448,12 @@ def process_file(file_path):
     返回 [(type_tag, mime_type, b64_data_or_path, label), ...]
     type_tag: 'image' / 'audio' / 'video_native' / 'other'
     """
-    path = Path(file_path)
+    path = Path(file_path).resolve()
     if not path.exists():
         print(f"错误: 文件不存在: {file_path}")
+        sys.exit(1)
+    if not path.is_file():
+        print(f"错误: 路径不是文件: {file_path}")
         sys.exit(1)
 
     ext = path.suffix.lower()
@@ -777,16 +782,20 @@ def call_api_stream(messages, has_video=False):
 
 
 def save_session(session_id, messages, response_data):
-    """保存/更新对话到文件"""
+    """保存/更新对话到文件（base64 数据会被省略以减小文件体积）"""
     data_path = Path(CONFIG['data_path_abs'])
     session_file = data_path / f"{session_id}.json"
 
     now = datetime.now().isoformat()
 
+    # 深拷贝并截断 base64 数据，避免文件数据明文存盘
+    messages_clean = copy.deepcopy(messages)
+    truncate_base64(messages_clean)
+
     if session_file.exists():
         with open(session_file, 'r', encoding='utf-8') as f:
             existing = json.load(f)
-        existing['messages'] = messages
+        existing['messages'] = messages_clean
         existing['last_response'] = response_data
         existing['updated_at'] = now
         with open(session_file, 'w', encoding='utf-8') as f:
@@ -800,7 +809,7 @@ def save_session(session_id, messages, response_data):
             "single_file_only": CONFIG['single_file_only'],
             "allowed_extensions": CONFIG['allowed_extensions'],
             "ffmpeg_available": CONFIG['ffmpeg_available'],
-            "messages": messages,
+            "messages": messages_clean,
             "last_response": response_data,
         }
         with open(session_file, 'w', encoding='utf-8') as f:
@@ -1090,13 +1099,13 @@ def main():
     # new
     p_new = subparsers.add_parser('new', help='创建新对话（自动生成 session_id）')
     p_new.add_argument('--prompt', '-p', required=True, help='发送给多模态 AI 的提示文本')
-    p_new.add_argument('--file', '-f', nargs='*', default=[], help='要上传的文件路径（可多个，用空格分隔）')
+    p_new.add_argument('--file', '-f', action='append', default=[], help='要上传的文件路径（可多个，如 --file a.jpg --file b.jpg）')
 
     # continue
     p_cont = subparsers.add_parser('continue', help='继续已有对话')
     p_cont.add_argument('session_id', help='对话 ID')
     p_cont.add_argument('--prompt', '-p', required=True, help='继续对话的提示文本')
-    p_cont.add_argument('--file', '-f', nargs='*', default=[], help='要上传的文件路径（可多个，用空格分隔）')
+    p_cont.add_argument('--file', '-f', action='append', default=[], help='要上传的文件路径（可多个，如 --file a.jpg --file b.jpg）')
 
     # list
     subparsers.add_parser('list', help='列出所有对话')
