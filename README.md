@@ -10,7 +10,7 @@
 
 ```bash
 # 安装
-npm i -g sense-cli
+npm i -g @feat-cat/sense
 
 # 使用（从任意目录）
 sense new --prompt "描述这张图片" --file photo.jpg
@@ -107,7 +107,7 @@ feat-cat/sense/
 │   ├── SKILL.md          AI 使用指引
 │   ├── bridge.py         核心 Python 脚本
 │   └── .env.example      配置模板
-├── cli/                ← npm CLI 包（npm i -g sense-cli）
+├── cli/                ← npm CLI 包（npm i -g @feat-cat/sense）
 │   ├── bin/sense.js       CLI 入口
 │   └── package.json
 ├── README.md

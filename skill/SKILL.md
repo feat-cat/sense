@@ -61,7 +61,7 @@ tags:
 
 | 方式 | 命令 | 安装要求 | 适用场景 |
 |------|------|----------|----------|
-| **CLI（推荐）** | `sense new --file photo.jpg` | `npm i -g sense-cli` | 任意目录直接调用，最方便 |
+| **CLI（推荐）** | `sense new --file photo.jpg` | `npm i -g @feat-cat/sense` | 任意目录直接调用，最方便 |
 | **Python 直调** | `python bridge.py new --file photo.jpg` | `pip install requests` | 未安装 npm 时，需 cd 到 skill 目录 |
 
 **优先使用 CLI 方式**（`sense <command>`），AI 不需要知道文件路径，从任何目录都能运行。
@@ -73,13 +73,13 @@ tags:
 ### 1. 安装 CLI（推荐）
 
 ```bash
-npm i -g sense-cli
+npm i -g @feat-cat/sense
 ```
 
 也可以直接用 npx（无需安装）：
 
 ```bash
-npx sense-cli <command> ...
+npx @feat-cat/sense <command> ...
 ```
 
 ### 2. 安装 Python 依赖
@@ -167,7 +167,7 @@ copy .env.example .env
 
 ## 使用方法
 
-优先使用 `sense` CLI 命令（需安装 `npm i -g sense-cli`），从任意目录直接调用。如未安装 CLI，可 `cd` 到本 skill 目录后用 `python bridge.py <command>`。
+优先使用 `sense` CLI 命令（需安装 `npm i -g @feat-cat/sense`），从任意目录直接调用。如未安装 CLI，可 `cd` 到本 skill 目录后用 `python bridge.py <command>`。
 
 ### 1. 创建新对话（分析文件）
 
@@ -178,7 +178,7 @@ copy .env.example .env
 sense new --prompt "描述这张图片的内容" --file photo.jpg
 
 # 也可用 npx（无需安装）
-npx sense-cli new --prompt "描述这张图片的内容" --file photo.jpg
+npx @feat-cat/sense new --prompt "描述这张图片的内容" --file photo.jpg
 
 # 或用 Python 直接调用
 # cd <skill目录> && python bridge.py new --prompt "..." --file photo.jpg
@@ -361,7 +361,7 @@ feat-cat/sense/
 │   ├── SKILL.md
 │   ├── bridge.py
 │   └── .env.example
-├── cli/                ← npm CLI（npm i -g sense-cli）
+├── cli/                ← npm CLI（npm i -g @feat-cat/sense）
 │   ├── bin/sense.js
 │   └── package.json
 ├── README.md
