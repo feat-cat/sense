@@ -125,6 +125,7 @@ copy .env.example .env
 | `VIDEO_MAX_WIDTH` | 视频帧最大宽度（px） | `1024` |
 | `AUDIO_TARGET_FORMAT` | 音频转码格式 | `mp3` |
 | `AUDIO_SAMPLE_RATE` | 音频采样率 | `16000` |
+| `OPENCLAW_MEDIA_DIR` | `media://` 伪路径的根目录，支持 `~` | 自动搜索 `~/.openclaw/media/` |
 
 ### 3. 视频模式说明
 
@@ -162,6 +163,23 @@ copy .env.example .env
 ### 6. `.env` 未配置时的行为
 
 如果 `.env` **不存在** 或 **缺少必填项**，脚本会直接报错退出并提示缺少了哪些配置项。**请务必告知用户检查 `.env` 配置。**
+
+### 7. `media://` 伪路径支持
+
+某些 AI 平台（如 OpenClaw）发送媒体文件时，AI 看到的是 `media://<相对路径>` 这样的伪 URL。
+
+bridge.py 会自动解析 `media://` 路径：
+1. 如果 `.env` 设置了 `OPENCLAW_MEDIA_DIR`，则以该目录为根查找（支持 `~`）
+2. 否则自动搜索默认位置：
+   - `~/.openclaw/media/`
+   - `~/.openclaw/workspace/media/`（Docker sandbox 模式）
+
+**使用场景（以 OpenClaw 为例）：**
+- AI 从对话上下文获取 `media://inbound/xxx.jpg` 路径
+- 直接传给 `sense new --file "media://inbound/xxx.jpg" "描述这张图片"`
+- bridge.py 自动映射到真实文件，无需手动处理
+
+**不配置也能工作**（只要文件在默认位置）。如果平台使用了自定义媒体目录，才需要设置 `OPENCLAW_MEDIA_DIR`。
 
 ---
 
@@ -297,6 +315,11 @@ sense status
 当用户请求涉及图片/音视频分析时，请遵循以下流程：
 
 ### 流程
+
+0. **识别 `media://` 伪路径**
+   - 如果用户传来的文件路径以 `media://` 开头（如在 OpenClaw 中），**直接使用该路径**
+   - 示例: `sense new --file "media://inbound/abc123.jpg" "描述这张图片"`
+   - bridge.py 会自动将 `media://` 映射到磁盘上的真实文件
 
 1. **检查 `.env` 是否已配置**
    - 如果未配置，引导用户参考 `.env.example` 进行配置

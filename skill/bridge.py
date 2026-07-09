@@ -254,6 +254,10 @@ def load_config():
     CONFIG['use_audio_in_video'] = env_data.get('USE_AUDIO_IN_VIDEO', 'true').lower() in (
         'true', '1', 'yes')
 
+    # 可选配置 — media:// 路径映射
+    raw_openclaw_dir = env_data.get('OPENCLAW_MEDIA_DIR', '').strip()
+    CONFIG['openclaw_media_dir'] = raw_openclaw_dir if raw_openclaw_dir else ''
+
     # 确保数据目录存在
     data_path = Path(CONFIG['data_path'])
     data_path.mkdir(parents=True, exist_ok=True)
@@ -439,6 +443,77 @@ def _encode_file_b64(path):
         return base64.b64encode(f.read()).decode('utf-8')
 
 
+def resolve_media_path(file_path):
+    """
+    解析 media:// 伪路径为真实文件路径。
+
+    某些 AI 平台（如 OpenClaw）发送媒体文件时，AI 看到的是
+    media://<相对路径> 这样的伪 URL，而非真实磁盘路径。
+    此函数将其映射到磁盘上的真实路径。
+
+    映射规则（按优先级）：
+      1. 如果 .env 配置了 OPENCLAW_MEDIA_DIR，则以该目录为根
+      2. 否则尝试默认位置 ~/.openclaw/media/
+      3. 再尝试 ~/.openclaw/workspace/media/
+    如果不是 media:// 路径，则原样返回（调用 .resolve() 标准化）。
+    """
+    path_str = str(file_path)
+
+    if not path_str.startswith('media://'):
+        return Path(file_path).resolve()
+
+    # 去掉 media:// 前缀，得到相对路径部分
+    # media://inbound/abc.jpg → inbound/abc.jpg
+    # media://abc.jpg → abc.jpg
+    relative = path_str[len('media://'):]
+    # 去掉可能的前导 /
+    relative = relative.lstrip('/')
+
+    if not relative:
+        print(f"错误: 无效的 media:// 路径: {file_path}")
+        sys.exit(1)
+
+    # 收集候选目录
+    candidates = []
+
+    # 1. 用户配置的 OPENCLAW_MEDIA_DIR（支持 ~ 代表用户目录）
+    configured = CONFIG.get('openclaw_media_dir', '').strip()
+    if configured:
+        candidates.append(Path(configured).expanduser())
+    else:
+        # 2. 默认 OpenClaw 媒体目录
+        candidates.append(Path.home() / '.openclaw' / 'media')
+        # 3. OpenClaw workspace（Docker sandbox 模式）
+        candidates.append(Path.home() / '.openclaw' / 'workspace' / 'media')
+
+    for base in candidates:
+        resolved_base = base.resolve()
+        candidate = (resolved_base / relative).resolve()
+        # 路径遍历防护：确保解析后的路径仍在目标目录内
+        try:
+            candidate.relative_to(resolved_base)
+        except ValueError:
+            print(f"错误: 路径越界访问被拒绝: {relative}")
+            sys.exit(1)
+        if candidate.exists() and candidate.is_file():
+            if VERBOSE:
+                print(f"  解析 media:// 路径: {path_str} → {candidate}")
+            return candidate
+
+    # 没找到，报详细错误
+    print(f"错误: 无法解析 media:// 路径: {path_str}")
+    print(f"  已检查以下目录:")
+    for base in candidates:
+        checked = (base.resolve() / relative).resolve()
+        print(f"    - {checked}  {'✓ 存在' if checked.exists() else '✗ 不存在'}")
+    print()
+    print(f"  请确认:")
+    print(f"    1. 该媒体文件已存在于磁盘上")
+    print(f"    2. 如果使用了自定义媒体目录，在 .env 中设置 OPENCLAW_MEDIA_DIR")
+    print(f"    3. 当前默认搜索目录: {Path.home() / '.openclaw' / 'media'}")
+    sys.exit(1)
+
+
 def process_file(file_path):
     """
     处理单个文件：
@@ -448,7 +523,7 @@ def process_file(file_path):
     返回 [(type_tag, mime_type, b64_data_or_path, label), ...]
     type_tag: 'image' / 'audio' / 'video_native' / 'other'
     """
-    path = Path(file_path).resolve()
+    path = resolve_media_path(file_path)
     if not path.exists():
         print(f"错误: 文件不存在: {file_path}")
         sys.exit(1)
@@ -1057,6 +1132,7 @@ def cmd_status():
         "top_p": CONFIG['top_p'],
         "video_mode": CONFIG['video_mode'],
         "use_audio_in_video": CONFIG['use_audio_in_video'],
+        "openclaw_media_dir": CONFIG.get('openclaw_media_dir', '') or '(默认 ~/.openclaw/media)',
         "ffmpeg": {
             "enabled": CONFIG['ffmpeg_enabled'],
             "available": CONFIG['ffmpeg_available'],
