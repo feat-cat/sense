@@ -863,9 +863,8 @@ def save_session(session_id, messages, response_data):
 
     now = datetime.now().isoformat()
 
-    # 深拷贝并截断 base64 数据，避免文件数据明文存盘
+    # 深拷贝消息，保留完整 base64 数据（continue 时需要重新发送给 API）
     messages_clean = copy.deepcopy(messages)
-    truncate_base64(messages_clean)
 
     if session_file.exists():
         with open(session_file, 'r', encoding='utf-8') as f:
