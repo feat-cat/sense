@@ -76,7 +76,7 @@ tags:
 npm i -g @feat-cat/sense
 ```
 
-也可以直接用 npx（无需安装）：
+也可以直接用 npx（无需全局安装 npm 包，但仍需安装 skill 本体并配置 `.env`）：
 
 ```bash
 npx @feat-cat/sense <command> ...
@@ -127,7 +127,7 @@ copy .env.example .env
 | `AUDIO_SAMPLE_RATE` | 音频采样率 | `16000` |
 | `OPENCLAW_MEDIA_DIR` | `media://` 伪路径的根目录，支持 `~` | 自动搜索 `~/.openclaw/media/` |
 
-### 3. 视频模式说明
+### 4. 视频模式说明
 
 两种视频模式：
 
@@ -140,7 +140,7 @@ copy .env.example .env
 - `mm_processor_kwargs.use_audio_in_video` — 同时处理视频中的音频
 - `media_io_kwargs.fps / num_frames` — 控制服务端抽帧密度
 
-### 4. BASE_URL 说明
+### 5. BASE_URL 说明
 
 `BASE_URL` 需要**用户提供完整路径**，脚本直接拼接 `/chat/completions`。例如：
 
@@ -150,7 +150,7 @@ copy .env.example .env
 | `https://api.deepinfra.com/v1/openai` | `https://api.deepinfra.com/v1/openai/chat/completions` |
 | `http://localhost:8000/v1` | `http://localhost:8000/v1/chat/completions` |
 
-### 5. FFmpeg 说明
+### 6. FFmpeg 说明
 
 如果 `FFMPEG_ENABLED=true` 且系统安装了 ffmpeg：
 - **视频（extract 模式）**：自动抽帧为图片发送
@@ -160,11 +160,11 @@ copy .env.example .env
 - 视频（extract 模式）**报错退出**
 - 音频**直接发送原文件**
 
-### 6. `.env` 未配置时的行为
+### 7. `.env` 未配置时的行为
 
 如果 `.env` **不存在** 或 **缺少必填项**，脚本会直接报错退出并提示缺少了哪些配置项。**请务必告知用户检查 `.env` 配置。**
 
-### 7. `media://` 伪路径支持
+### 8. `media://` 伪路径支持
 
 某些 AI 平台（如 OpenClaw）发送媒体文件时，AI 看到的是 `media://<相对路径>` 这样的伪 URL。
 
@@ -195,31 +195,33 @@ bridge.py 会自动解析 `media://` 路径：
 # 推荐：用 sense 命令（从任意目录执行）
 sense new --prompt "描述这张图片的内容" --file photo.jpg
 
-# 也可用 npx（无需安装）
+# 也可用 npx（无需全局安装 npm 包，但仍需 skill 本体和 .env）
 npx @feat-cat/sense new --prompt "描述这张图片的内容" --file photo.jpg
 
-# 或用 Python 直接调用
-# cd <skill目录> && python bridge.py new --prompt "..." --file photo.jpg
+# 或用 Python 直接调用（需 cd 到 skill 目录）
+cd <skill目录> && python bridge.py new --prompt "描述这张图片的内容" --file photo.jpg
 
-# 分析多个文件（需 SINGLE_FILE_ONLY=false）
-sense new --prompt "对比这两张图片" --file img1.jpg img2.jpg
+# 分析多个文件（需 SINGLE_FILE_ONLY=false），每个文件单独用 --file
+sense new --prompt "对比这两张图片" --file img1.jpg --file img2.jpg
+
+# 分析视频
+sense new --prompt "描述这段视频的内容" --file demo.mp4
+
+# 分析音频
+sense new --prompt "描述这段音频的内容" --file recording.mp3
 
 # 仅文本对话（不上传文件）
 sense new --prompt "你好，请介绍一下你自己"
 ```
 
-返回结果示例：
-```json
-{
-  "session_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "response": "这是一张夕阳下的海滩照片...",
-  "usage": { "prompt_tokens": 120, "completion_tokens": 80, "total_tokens": 200 },
-  "model": "gpt-4o",
-  "single_file_only": false
-}
+返回结果示例（实际输出为流式文本，最后一行是会话 ID）：
+```
+[多模态 AI 的回复会逐 token 流式输出...]
+
+会话 ID: a1b2c3d4-e5f6-7890-abcd-ef1234567890
 ```
 
-**重要：** 将 `session_id` 记录下来，后续追问需要使用。
+**重要：** 将输出最后一行 `会话 ID: <uuid>` 中的 uuid 记录下来，后续追问需要使用 `continue <session_id>` 命令。
 
 ### 2. 继续对话（追问细节）
 
@@ -312,53 +314,94 @@ sense status
 
 ## AI 使用此 Skill 的最佳实践
 
-当用户请求涉及图片/音视频分析时，请遵循以下流程：
+### 核心原则
+
+1. **优先用 `sense` CLI** — 始终使用 `sense <command>` 而非 `python bridge.py`。如果 `sense` 不可用，再 `cd` 到 skill 目录用 `python bridge.py`。
+2. **不需要预先验证配置** — 不需要先执行 `sense status` 来检查 .env 是否完整。直接运行命令，如果 .env 有问题 bridge.py 会报错并明确提示缺少的配置项，届时再引导用户修复即可。
+3. **先描述，不替用户下结论** — 用户的直觉是想"先看看 AI 看到了什么"，所以初始 prompt 应简洁中性，让用户自己决定追问方向。
+4. **保留 session_id** — 每次 `new` 的返回中记录 `session_id`，以便追问。
 
 ### 流程
 
-0. **识别 `media://` 伪路径**
-   - 如果用户传来的文件路径以 `media://` 开头（如在 OpenClaw 中），**直接使用该路径**
-   - 示例: `sense new --file "media://inbound/abc123.jpg" "描述这张图片"`
-   - bridge.py 会自动将 `media://` 映射到磁盘上的真实文件
+1. **使用 `new` 命令开启新对话**
+   - **上传文件时**，prompt **永远只写** `"描述这张图片的内容"`（或 `"描述这段音频的内容"` / `"描述这段视频的内容"`），**不猜、不判断、不分析**
+   - **纯文本对话时**（不上传文件），prompt 按正常对话写即可
+   - 将输出中 `会话 ID: <uuid>` 的 uuid 记录下来
 
-1. **检查 `.env` 是否已配置**
-   - 如果未配置，引导用户参考 `.env.example` 进行配置
-   - 执行 `sense status` 快速验证，如果报错则引导用户创建 `.env`
+2. **Agent 自己分析多模态 AI 的描述**
+   - 拿到多模态 AI 的纯描述后，**你自己**根据描述进行猜测、判断、推理
+   - 例如：多模态 AI 说"一个戴宽檐帽、穿棕色风衣的人"→ 你来猜"这可能是迪卢克"
+   - 这样你（agent）也参与了思考，而不是完全甩给多模态 AI
 
-2. **使用 `new` 命令开启新对话**
-   - 每次用户提出新的分析需求，使用 `new`
-   - 将返回的 `session_id` 记录下来
+3. **主动追问，挖细节！**
+   - 多模态 AI 的**第一次描述通常很肤浅**（色彩、构图、大概内容），你如果觉得信息不够，**不要等用户开口，你自己主动追问**
+   - 用 `sense continue <session_id> --prompt "追问的具体内容"` 来挖掘更多细节
+   - 可以追好几轮，直到你对画面有足够了解再来做判断
+   - **重要：每次主动追问前，先告知用户你在做什么**，例如"画面细节还不够，我来进一步查看细节"，让用户了解你的进度
+   - 示例追问方向：
+     - `"描述画面中人物的表情和神态"`
+     - `"有哪些可以识别身份的细节特征？"`（纹章、标志性配饰、武器等）
+     - `"画面的风格和色调有什么特点？"`
+     - `"能看出画中人物和所处环境的关系吗？"`
+     - `"画面的用光、配色、构图有什么值得注意的？"`
 
-3. **使用 `continue` 命令处理追问**
-   - 用户对同一文件/话题继续提问时，使用 `continue <session_id>`
-   - 如果 `SINGLE_FILE_ONLY=true`，追问时不能再传新文件
+4. **信息够了再得出结论**
+   - 觉得信息充分了，再做猜测/推理，把最终结果给用户
 
-4. **告知用户会话 ID**
-   - 告知用户 session_id，以便后续可以继续对话
-   - 示例: "本次分析的会话 ID 是 `xxxx`，你可以记住这个 ID，后续可以继续追问"
+5. **用户追问时，用 `continue`**
+   - 用户想进一步了解时，同样使用 `continue <session_id> --prompt "..."`
 
-### 处理 `SINGLE_FILE_ONLY=true` 的对话示例
+6. **需要分析完全不同的内容时，重新 `new`**
+
+### 示例
+
+```
+用户: 这张画怎么样？ （上传了 1 张图）
+
+你:  ✓ 正确做法 — 先描述 → 信息不够 → 主动追问 → 再判断
+
+    第 1 轮: sense new --prompt "描述这张图片的内容" --file image.jpg
+     ← "画面是一个戴宽檐帽、穿棕色风衣的人..."
+     感觉太笼统了，你主动追问:
+
+    第 2 轮: sense continue <id> --prompt "这个人物的服饰细节有什么特征？有没有标志性的配饰或纹章？"
+     ← "帽子侧面有一个金色菱形徽章，胸前有星形胸针..."
+
+    第 3 轮: sense continue <id> --prompt "人物的面部表情和神态如何？眼睛是什么颜色？"
+     ← "表情冷峻，红色瞳孔，嘴角微微上扬带着自信..."
+
+    → 信息够了！你分析和判断:
+       "金色菱形徽章 + 红色瞳孔 + 宽檐帽 + 长风衣 + 冷峻表情 = 原神里的迪卢克"
+    → 把结果给用户
+
+    ✗ 错误做法 — 第一轮描述太肤浅就直接给结论，不追问
+    → 用户看到的答案很肤浅，还得自己开口说"再细看看"
+
+    ✗ 错误做法 — 把猜测任务甩给多模态 AI
+    sense new --prompt "猜猜这张画画的是谁" --file image.jpg
+    → 那你（agent）就只是一个传话筒了
+
+    ✗ 错误做法 — 在 prompt 里一次性问太多
+    sense new --prompt "描述这张图片的内容并猜猜画的是谁"
+    → 你失去了中间追问和思考的环节
+
+用户: 再看这张 （上传了第 2 张新图）
+    sense new --prompt "描述这张图片的内容" --file image2.jpg
+    (全新对话)
+```
+
+### `SINGLE_FILE_ONLY=true` 时的注意点
+
+如果用户的配置是单文件模式，每个对话全程只能分析一个文件。用户上传新文件时需要开启新对话：
 
 ```
 用户: 分析这张图片 （上传了 1 张图）
-你:  使用 sense new --prompt "分析这张图片" --file image.jpg
-     → 得到 session_id 和 AI 回复
+你:  sense new --prompt "描述这张图片的内容" --file image.jpg
 
 用户: 再看看这张 （上传了第 2 张图）
-你:  由于当前模型设置为 SINGLE_FILE_ONLY=true，每个对话全程只能分析一个文件。
-     你需要开启一个新的对话来分析这张新图片。
-     使用 sense new --prompt "分析这张图片" --file image2.jpg
-```
-
-### 处理 `SINGLE_FILE_ONLY=false` 的对话示例
-
-```
-用户: 对比这两张图片 （上传了 2 张图）
-你:  使用 sense new --prompt "对比这两张图片" --file img1.jpg img2.jpg
-     → 得到 session_id
-
-用户: 再放大看看这个细节 （上传了 1 张新图）
-你:  使用 sense continue <session_id> --prompt "放大看这个细节" --file detail.jpg
+你:  当前模型设置为 SINGLE_FILE_ONLY=true，每个对话只能分析一个文件。
+     我帮你开启一个新对话来分析这张新图片。
+     sense new --prompt "描述这张图片的内容" --file image2.jpg
 ```
 
 ---
