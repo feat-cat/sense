@@ -17,6 +17,7 @@ import sys
 import subprocess
 import json
 import re
+import urllib.request
 import copy
 import uuid
 import base64
@@ -1224,12 +1225,37 @@ def main():
     # update 不需要 .env，提前处理
     if args.command == 'update':
         print("正在更新 sense skill...")
-        ret1 = subprocess.run(['npx', 'skills', 'add', 'feat-cat/sense', '-y', '-g'], shell=True).returncode
-        if ret1 != 0:
-            print("× skill 更新失败，请手动运行: npx skills add feat-cat/sense -y -g")
-            sys.exit(ret1)
-        print("✓ sense skill 已更新")
+        print("来源: https://raw.githubusercontent.com/feat-cat/sense/main/skill/")
+
+        # 确定目标目录（当前 bridge.py 所在目录）
+        target_dir = Path(__file__).parent
+        print(f"目标: {target_dir}")
+
+        # 从 GitHub raw 下载文件
+        skill_files = ['bridge.py', 'SKILL.md', '.env.example']
+        base_url = 'https://raw.githubusercontent.com/feat-cat/sense/main/skill'
+
+        try:
+            for filename in skill_files:
+                url = f"{base_url}/{filename}"
+                dest = target_dir / filename
+                print(f"  下载 {filename} ... ", end='', flush=True)
+                try:
+                    with urllib.request.urlopen(url) as resp:
+                        if resp.status != 200:
+                            raise Exception(f"HTTP {resp.status}")
+                        dest.write_bytes(resp.read())
+                    print('✓')
+                except Exception as e:
+                    print('×')
+                    raise Exception(f"下载 {filename} 失败: {e}")
+            print("✓ sense skill 已更新")
+        except Exception as e:
+            print(f"× {e}")
+            sys.exit(1)
+
         print("正在更新 sense CLI...")
+        print("来源: https://www.npmjs.com/package/@feat-cat/sense")
         ret2 = subprocess.run(['npm', 'install', '-g', '@feat-cat/sense'], shell=True).returncode
         if ret2 == 0:
             print("✓ sense CLI 已更新到最新")

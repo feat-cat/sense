@@ -7,8 +7,14 @@
  */
 
 const { resolve, dirname, join } = require('path');
-const { existsSync, readFileSync } = require('fs');
+const { existsSync, readFileSync, mkdirSync, createWriteStream } = require('fs');
 const { spawn } = require('child_process');
+const https = require('https');
+
+// Windows 上 Node.js 内置 CA 可能不含 GitHub 证书
+if (process.platform === 'win32') {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+}
 
 // 从 package.json 读取版本号（在 bin/ 上一级）
 const pkgJson = JSON.parse(readFileSync(resolve(__dirname, '..', 'package.json'), 'utf-8'));
@@ -58,6 +64,43 @@ function detectScope(bridgePy) {
   if (bridgePy === resolve(__dirname, '..', '..', 'skill', 'bridge.py')) return 'dev';   // 开发者模式（repo 内）
   if (process.env.SENSE_BRIDGE) return 'custom';   // 环境变量指定的自定义路径
   return 'custom';
+}
+
+// 从 GitHub raw 下载 skill 文件列表
+const SKILL_FILES = ['bridge.py', 'SKILL.md', '.env.example'];
+const GITHUB_RAW = 'https://raw.githubusercontent.com/feat-cat/sense/main/skill';
+
+function downloadFile(url, dest) {
+  return new Promise((resolve, reject) => {
+    const file = createWriteStream(dest);
+    https.get(url, (res) => {
+      if (res.statusCode !== 200) {
+        reject(new Error(`HTTP ${res.statusCode} ${res.statusMessage}`));
+        return;
+      }
+      res.pipe(file);
+      file.on('finish', () => { file.close(); resolve(); });
+    }).on('error', (err) => {
+      file.close();
+      reject(err);
+    });
+  });
+}
+
+async function downloadSkill(targetDir) {
+  mkdirSync(targetDir, { recursive: true });
+  for (const file of SKILL_FILES) {
+    const url = `${GITHUB_RAW}/${file}`;
+    const dest = join(targetDir, file);
+    process.stdout.write(`  下载 ${file} ... `);
+    try {
+      await downloadFile(url, dest);
+      console.log('✓');
+    } catch (err) {
+      console.log('×');
+      throw new Error(`下载 ${file} 失败: ${err.message}`);
+    }
+  }
 }
 
 function run(cmd, args) {
@@ -117,32 +160,30 @@ async function main() {
     return;
   }
 
-  if (args[0] === 'update' || args[0] === 'install') {
-    // update = 安装/更新 skill + CLI
-    // install 作为 update 的别名保留
+  if (args[0] === 'update') {
     const bridgePy = findBridgePy();
-    const scope = bridgePy ? detectScope(bridgePy) : null;
+    let targetDir;
 
-    if (scope === 'custom') {
-      console.error('× 当前 bridge.py 通过 SENSE_BRIDGE 指定，无法自动更新');
-      console.error('  请手动更新: git pull 或重新 npx skills add feat-cat/sense');
+    // 确定 skill 安装目录
+    if (!bridgePy) {
+      // 没装 skill：默认装到全局
+      const home = process.env.HOME || process.env.USERPROFILE;
+      if (!home) { console.error('× 无法确定用户目录'); process.exit(1); }
+      targetDir = join(home, '.agents', 'skills', 'sense');
+    } else {
+      targetDir = dirname(bridgePy);
+    }
+
+    console.log('正在更新 sense skill...');
+    console.log('来源: ' + GITHUB_RAW);
+    console.log('目标: ' + targetDir);
+    try {
+      await downloadSkill(targetDir);
+      console.log('✓ sense skill 已更新');
+    } catch (err) {
+      console.error('× ' + err.message);
       process.exit(1);
     }
-
-    // 选择正确的安装范围
-    const isProject = scope === 'project';
-    const skillsArgs = isProject
-      ? ['skills', 'add', 'feat-cat/sense', '-y']
-      : ['skills', 'add', 'feat-cat/sense', '-y', '-g'];
-
-    console.log('正在更新 sense skill' + (isProject ? '（项目级）' : '（全局）') + '...');
-    console.log('来源: https://github.com/feat-cat/sense.git');
-    const code1 = await run('npx', skillsArgs);
-    if (code1 !== 0) {
-      console.error('× skill 更新失败，可手动运行: npx skills add feat-cat/sense -y' + (isProject ? '' : ' -g'));
-      process.exit(code1);
-    }
-    console.log('✓ sense skill 已更新');
 
     console.log('正在更新 sense CLI...');
     console.log('来源: https://www.npmjs.com/package/@feat-cat/sense');
