@@ -1173,15 +1173,17 @@ def main():
 
     # new
     p_new = subparsers.add_parser('new', help='创建新对话（自动生成 session_id）')
-    p_new.add_argument('--prompt', '-p', help='发送给多模态 AI 的提示文本（与 --prompt-stdin 二选一）')
-    p_new.add_argument('--prompt-stdin', action='store_true', help='从标准输入读取提示文本（避免 shell 引号问题，与 --prompt 二选一）')
+    p_new_prompt = p_new.add_mutually_exclusive_group()
+    p_new_prompt.add_argument('--prompt', '-p', help='发送给多模态 AI 的提示文本（与 --prompt-stdin 二选一）')
+    p_new_prompt.add_argument('--prompt-stdin', action='store_true', help='从标准输入读取提示文本（避免 shell 引号问题，与 --prompt 二选一）')
     p_new.add_argument('--file', '-f', action='append', default=[], help='要上传的文件路径（可多个，如 --file a.jpg --file b.jpg）')
 
     # continue
     p_cont = subparsers.add_parser('continue', help='继续已有对话')
     p_cont.add_argument('session_id', help='对话 ID')
-    p_cont.add_argument('--prompt', '-p', help='继续对话的提示文本（与 --prompt-stdin 二选一）')
-    p_cont.add_argument('--prompt-stdin', action='store_true', help='从标准输入读取提示文本（避免 shell 引号问题，与 --prompt 二选一）')
+    p_cont_prompt = p_cont.add_mutually_exclusive_group()
+    p_cont_prompt.add_argument('--prompt', '-p', help='继续对话的提示文本（与 --prompt-stdin 二选一）')
+    p_cont_prompt.add_argument('--prompt-stdin', action='store_true', help='从标准输入读取提示文本（避免 shell 引号问题，与 --prompt 二选一）')
     p_cont.add_argument('--file', '-f', action='append', default=[], help='要上传的文件路径（可多个，如 --file a.jpg --file b.jpg）')
 
     # list
@@ -1213,10 +1215,13 @@ def main():
 
     # 处理 prompt-stdin：从标准输入读取提示文本
     if hasattr(args, 'prompt_stdin') and args.prompt_stdin:
-        if args.prompt:
-            print("错误: --prompt 和 --prompt-stdin 不能同时使用")
+        if sys.stdin.isatty():
+            print("错误: --prompt-stdin 需要从管道或重定向输入", file=sys.stderr)
+            print("用法示例: echo '你的提示文本' | sense new --prompt-stdin --file photo.jpg", file=sys.stderr)
             sys.exit(1)
-        args.prompt = sys.stdin.read().strip()
+        # 确保以 UTF-8 读取，避免 Windows 编码问题
+        stdin_data = sys.stdin.buffer.read().decode('utf-8')
+        args.prompt = stdin_data.strip()
         if not args.prompt:
             print("错误: 标准输入中未读取到提示文本")
             sys.exit(1)
@@ -1225,6 +1230,8 @@ def main():
         cmd = args.command
         if cmd in ('new', 'continue'):
             print(f"错误: {cmd} 命令需要提供 --prompt 或 --prompt-stdin")
+            print(f"用法: sense {cmd} --prompt \"你的提示文本\" [--file photo.jpg]")
+            print(f"  或: echo '你的提示文本' | sense {cmd} --prompt-stdin [--file photo.jpg]")
             sys.exit(1)
 
     if args.command == 'new':
