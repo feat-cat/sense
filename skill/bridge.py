@@ -1122,7 +1122,15 @@ def cmd_delete(session_id, delete_all=False):
 
 def cmd_status():
     """显示当前配置信息"""
+    # 获取 Python 版本信息
+    py_ver = sys.version.split()[0]
+    py_exe = sys.executable
+
     info = {
+        "python": {
+            "version": py_ver,
+            "executable": py_exe,
+        },
         "model": CONFIG['model_id'],
         "base_url": CONFIG['base_url'],
         "data_path": CONFIG['data_path_abs'],

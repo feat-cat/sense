@@ -105,16 +105,35 @@ async function downloadSkill(targetDir) {
 
 function run(cmd, args) {
   return new Promise((resolve, reject) => {
-    // Windows 下需 shell:true，因为 npm/npx 是 .cmd 文件
-    const opts = { stdio: 'inherit' };
-    if (process.platform === 'win32') opts.shell = true;
-    const child = spawn(cmd, args, opts);
-    child.on('exit', (code) => resolve(code ?? 1));
-    child.on('error', (err) => reject(err));
+    // Windows 上 npm/npx 是 .cmd 文件，用 cmd.exe /c 启动
+    // 避免使用 shell:true（Node.js v24+ 会触发 DEP0190 告警）
+    if (process.platform === 'win32' && (cmd === 'npm' || cmd === 'npx')) {
+      const child = spawn('cmd.exe', ['/c', cmd, ...args], { stdio: 'inherit' });
+      child.on('exit', (code) => resolve(code ?? 1));
+      child.on('error', (err) => reject(err));
+    } else {
+      const child = spawn(cmd, args, { stdio: 'inherit' });
+      child.on('exit', (code) => resolve(code ?? 1));
+      child.on('error', (err) => reject(err));
+    }
   });
 }
 
-function showHelp(bridgePy) {
+function detectPython() {
+  const envPy = process.env.SENSE_PYTHON;
+  const candidates = envPy ? [envPy] : ['py', 'python', 'python3'];
+  const found = candidates.find(c => {
+    try { return require('child_process').spawnSync(c, ['--version']).status === 0; }
+    catch { return false; }
+  }) || null;
+  if (!found) return { cmd: null, version: '未检测到', path: null };
+  const ver = require('child_process').spawnSync(found, ['--version']).stdout.toString().trim()
+            || require('child_process').spawnSync(found, ['--version']).stderr.toString().trim()
+            || '未知';
+  return { cmd: found, version: ver, path: found };
+}
+
+function showHelp(bridgePy, pythonInfo) {
   console.log('');
   console.log('  sense — 多模态 AI 桥接 CLI v' + VERSION);
   console.log('');
@@ -131,18 +150,11 @@ function showHelp(bridgePy) {
   console.log('  管理:');
   console.log('    sense update              安装/更新 sense CLI + skill 到最新');
   console.log('');
-  console.log('  bridge.py 查找顺序:');
-  console.log('    1. SENSE_BRIDGE 环境变量');
-  console.log('    2. CLI 安装目录的上级 skill/');
-  console.log('    3. 当前项目 .agents/skills/sense/');
-  console.log('    4. 用户目录 .agents/skills/sense/');
-  console.log('    5. OpenCode 全局 skill 目录');
-  console.log('');
-  console.log('  --prompt-stdin: 从标准输入读取提示文本，避免 shell 引号转义问题');
+  console.log('  Python: ' + pythonInfo.version + ' (' + pythonInfo.cmd + ')');
   if (bridgePy) {
-    console.log('');
-    console.log('  当前使用: ' + bridgePy);
+    console.log('  bridge: ' + bridgePy);
   }
+  console.log('  CLI:    @feat-cat/sense v' + VERSION);
   console.log('');
 }
 
@@ -151,12 +163,13 @@ async function main() {
 
   // --- 这些命令不需要 bridge.py ---
   if (args[0] === '--version' || args[0] === '-V') {
-    console.log('@feat-cat/sense v' + VERSION);
+    const py = detectPython();
+    console.log('@feat-cat/sense v' + VERSION + ' | ' + py.version + ' | ' + (findBridgePy() || '未安装'));
     return;
   }
 
   if (args.length === 0 || args[0] === '--help' || args[0] === '-h') {
-    showHelp(findBridgePy());
+    showHelp(findBridgePy(), detectPython());
     return;
   }
 
@@ -217,10 +230,14 @@ async function main() {
 
   const skillDir = getSkillDir(bridgePy);
 
-  // Windows: 优先用 py 启动器，再 fallback 到 python
-  // Unix: python3 优先
-  const pythonCmd = process.platform === 'win32' ? 'py' : 'python3';
-  const pythonArgs = process.platform === 'win32' ? ['-3', bridgePy, ...args] : [bridgePy, ...args];
+  // 找可用的 Python
+  const pythonInfo = detectPython();
+  if (!pythonInfo.cmd) {
+    console.error('× 找不到 Python，请安装 Python 3');
+    process.exit(1);
+  }
+  const pythonCmd = pythonInfo.cmd;
+  const pythonArgs = (pythonCmd === 'py' ? ['-3', bridgePy, ...args] : [bridgePy, ...args]);
 
   await run(pythonCmd, pythonArgs);
 }
