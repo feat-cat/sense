@@ -7,8 +7,12 @@
  */
 
 const { resolve, dirname, join } = require('path');
-const { existsSync } = require('fs');
+const { existsSync, readFileSync } = require('fs');
 const { spawn } = require('child_process');
+
+// 从 package.json 读取版本号（在 bin/ 上一级）
+const pkgJson = JSON.parse(readFileSync(resolve(__dirname, '..', 'package.json'), 'utf-8'));
+const VERSION = pkgJson.version;
 
 // bridge.py 查找优先级
 function findBridgePy() {
@@ -74,6 +78,11 @@ function main() {
 
   const skillDir = getSkillDir(bridgePy);
   const args = process.argv.slice(2);
+
+  if (args[0] === '--version' || args[0] === '-V') {
+    console.log('@feat-cat/sense v' + VERSION);
+    process.exit(0);
+  }
 
   if (args.length === 0 || args[0] === '--help' || args[0] === '-h') {
     console.log('');
