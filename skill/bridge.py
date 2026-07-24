@@ -1166,8 +1166,7 @@ def main():
   %(prog)s delete a1b2c3d4-e5f6-7890-abcd-ef1234567890
   %(prog)s delete --all
   %(prog)s status
-  %(prog)s install        # 安装 sense CLI（npm i -g @feat-cat/sense）
-  %(prog)s update         # 更新 sense CLI + skill 到最新
+  %(prog)s update         # 安装/更新 sense CLI + skill 到最新
         """,
     )
     parser.add_argument('--verbose', '-v', action='store_true', help='显示详细信息（文件处理、token用量等）')
@@ -1206,8 +1205,7 @@ def main():
     subparsers.add_parser('status', help='显示当前配置')
 
     # install / update
-    subparsers.add_parser('install', help='安装 sense CLI（来源: npm @feat-cat/sense）')
-    subparsers.add_parser('update', help='更新 sense CLI + skill 到最新（来源: GitHub feat-cat/sense + npm）')
+    subparsers.add_parser('update', help='安装/更新 sense CLI + skill 到最新（来源: GitHub feat-cat/sense + npm）')
 
     args = parser.parse_args()
 
@@ -1223,17 +1221,8 @@ def main():
         parser.print_help()
         sys.exit(1)
 
-    # install / update 不需要 .env，提前处理
-    if args.command == 'install':
-        print("正在安装 sense CLI...")
-        print("来源: https://www.npmjs.com/package/@feat-cat/sense")
-        ret = subprocess.run(['npm', 'install', '-g', '@feat-cat/sense'], shell=True).returncode
-        if ret == 0:
-            print("✓ sense CLI 安装完成，现在可以使用 sense <command> 了")
-        else:
-            print("× 安装失败，请手动运行: npm install -g @feat-cat/sense")
-        sys.exit(ret)
-    elif args.command == 'update':
+    # update 不需要 .env，提前处理
+    if args.command == 'update':
         print("正在更新 sense skill...")
         ret1 = subprocess.run(['npx', 'skills', 'add', 'feat-cat/sense', '-y', '-g'], shell=True).returncode
         if ret1 != 0:
