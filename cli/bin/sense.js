@@ -49,7 +49,10 @@ function getSkillDir(bridgePy) {
 
 function run(cmd, args) {
   return new Promise((resolve, reject) => {
-    const child = spawn(cmd, args, { stdio: 'inherit' });
+    // Windows 下需 shell:true，因为 npm/npx 是 .cmd 文件
+    const opts = { stdio: 'inherit' };
+    if (process.platform === 'win32') opts.shell = true;
+    const child = spawn(cmd, args, opts);
     child.on('exit', (code) => resolve(code ?? 1));
     child.on('error', (err) => reject(err));
   });
