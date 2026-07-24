@@ -10,6 +10,9 @@ const { resolve, dirname, join } = require('path');
 const { existsSync, readFileSync, mkdirSync, createWriteStream } = require('fs');
 const { spawn } = require('child_process');
 
+// 清理可能残留的环境变量
+delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+
 // 从 package.json 读取版本号（在 bin/ 上一级）
 const pkgJson = JSON.parse(readFileSync(resolve(__dirname, '..', 'package.json'), 'utf-8'));
 const VERSION = pkgJson.version;
