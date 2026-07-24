@@ -9,12 +9,6 @@
 const { resolve, dirname, join } = require('path');
 const { existsSync, readFileSync, mkdirSync, createWriteStream } = require('fs');
 const { spawn } = require('child_process');
-const https = require('https');
-
-// Windows 上 Node.js 内置 CA 可能不含 GitHub 证书
-if (process.platform === 'win32') {
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-}
 
 // 从 package.json 读取版本号（在 bin/ 上一级）
 const pkgJson = JSON.parse(readFileSync(resolve(__dirname, '..', 'package.json'), 'utf-8'));
@@ -70,21 +64,19 @@ function detectScope(bridgePy) {
 const SKILL_FILES = ['bridge.py', 'SKILL.md', '.env.example'];
 const GITHUB_RAW = 'https://raw.githubusercontent.com/feat-cat/sense/main/skill';
 
-function downloadFile(url, dest) {
-  return new Promise((resolve, reject) => {
-    const file = createWriteStream(dest);
-    https.get(url, (res) => {
-      if (res.statusCode !== 200) {
-        reject(new Error(`HTTP ${res.statusCode} ${res.statusMessage}`));
-        return;
-      }
-      res.pipe(file);
-      file.on('finish', () => { file.close(); resolve(); });
-    }).on('error', (err) => {
-      file.close();
-      reject(err);
-    });
-  });
+async function downloadFile(url, dest) {
+  // Python 的 SSL 在 Windows 上更可靠，用它来下载
+  const tmpScript = join(require('os').tmpdir(), '_sense_dl_' + Date.now() + '.py');
+  const pyCode = `
+import urllib.request
+url = ${JSON.stringify(url)}
+dest = ${JSON.stringify(dest)}
+open(dest, 'wb').write(urllib.request.urlopen(url).read())
+  `.trim();
+  require('fs').writeFileSync(tmpScript, pyCode);
+  const code = await run('py', ['-3', tmpScript]);
+  try { require('fs').unlinkSync(tmpScript); } catch {}
+  if (code !== 0) throw new Error('下载失败');
 }
 
 async function downloadSkill(targetDir) {
