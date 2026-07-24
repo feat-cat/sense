@@ -1201,6 +1201,10 @@ def main():
     # status
     subparsers.add_parser('status', help='显示当前配置')
 
+    # install / update
+    subparsers.add_parser('install', help='安装 sense CLI（npm i -g @feat-cat/sense）')
+    subparsers.add_parser('update', help='更新 sense CLI + skill 到最新版本')
+
     args = parser.parse_args()
 
     # 设置全局详细输出开关
@@ -1210,6 +1214,30 @@ def main():
     if not args.command:
         parser.print_help()
         sys.exit(1)
+
+    # install / update 不需要 .env，提前处理
+    if args.command == 'install':
+        print("正在安装 sense CLI...")
+        ret = os.system('npm install -g @feat-cat/sense')
+        if ret == 0:
+            print("✓ sense CLI 安装完成，现在可以使用 sense <command> 了")
+        else:
+            print("× 安装失败，请手动运行: npm install -g @feat-cat/sense")
+        sys.exit(ret)
+    elif args.command == 'update':
+        print("正在更新 sense skill...")
+        ret1 = os.system('npx skills add feat-cat/sense -y -g')
+        if ret1 != 0:
+            print("× skill 更新失败，请手动运行: npx skills add feat-cat/sense -y -g")
+            sys.exit(ret1)
+        print("✓ sense skill 已更新")
+        print("正在更新 sense CLI...")
+        ret2 = os.system('npm update -g @feat-cat/sense')
+        if ret2 == 0:
+            print("✓ sense CLI 已更新到最新")
+        else:
+            print("× CLI 更新失败，请手动运行: npm update -g @feat-cat/sense")
+        sys.exit(ret2)
 
     load_config()
 

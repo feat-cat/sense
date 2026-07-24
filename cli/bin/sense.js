@@ -86,7 +86,7 @@ function main() {
 
   if (args.length === 0 || args[0] === '--help' || args[0] === '-h') {
     console.log('');
-    console.log('  sense — 多模态 AI 桥接 CLI');
+    console.log('  sense — 多模态 AI 桥接 CLI v' + VERSION);
     console.log('');
     console.log('  用法:');
     console.log('    sense new --prompt "描述这张图片" --file photo.jpg');
@@ -98,10 +98,50 @@ function main() {
     console.log('    sense delete --all');
     console.log('    sense status');
     console.log('');
+    console.log('  管理:');
+    console.log('    sense install             安装/修复 sense skill 本体');
+    console.log('    sense update              更新 sense CLI + skill 到最新');
+    console.log('');
     console.log('  --prompt-stdin: 从标准输入读取提示文本，避免 shell 引号转义问题');
     console.log('');
     console.log('  bridge.py 位置: ' + bridgePy);
     process.exit(0);
+  }
+
+  // install / update —— 在 CLI 层直接处理，不传给 bridge.py
+  if (args[0] === 'install') {
+    console.log('正在安装 sense skill...');
+    const install = spawn('npx', ['skills', 'add', 'feat-cat/sense', '-y', '-g'], {
+      stdio: 'inherit',
+      shell: true
+    });
+    install.on('exit', (code) => {
+      if (code === 0) console.log('✓ sense skill 安装完成');
+      process.exit(code ?? 1);
+    });
+    return;
+  }
+
+  if (args[0] === 'update') {
+    console.log('正在更新 sense skill...');
+    const updateSkill = spawn('npx', ['skills', 'add', 'feat-cat/sense', '-y', '-g'], {
+      stdio: 'inherit',
+      shell: true
+    });
+    updateSkill.on('exit', (code1) => {
+      if (code1 !== 0) process.exit(code1 ?? 1);
+      console.log('✓ sense skill 已更新');
+      console.log('正在更新 sense CLI...');
+      const updateCli = spawn('npm', ['install', '-g', '@feat-cat/sense'], {
+        stdio: 'inherit',
+        shell: true
+      });
+      updateCli.on('exit', (code2) => {
+        if (code2 === 0) console.log('✓ sense CLI 已更新到最新 (' + VERSION + ' → 请重新运行 sense --version 确认)');
+        process.exit(code2 ?? 1);
+      });
+    });
+    return;
   }
 
   // Windows: 优先用 py 启动器，再 fallback 到 python
