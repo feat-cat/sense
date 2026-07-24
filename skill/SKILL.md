@@ -212,7 +212,12 @@ sense new --prompt "描述这段音频的内容" --file recording.mp3
 
 # 仅文本对话（不上传文件）
 sense new --prompt "你好，请介绍一下你自己"
+
+# 如果提示文本中包含引号等特殊字符，可用 --prompt-stdin 避免 shell 转义问题：
+echo '画面里的人说"你好"' | sense new --prompt-stdin --file photo.jpg
 ```
+
+> **提示**: 如果 `--prompt` 的文本中包含引号（如 `他说"你好"`），在 shell 中容易解析错误。此时可以用 `--prompt-stdin` 替代：通过管道将提示文本传入标准输入，彻底避免引号问题。
 
 返回结果示例（实际输出为流式文本，最后一行是会话 ID）：
 ```

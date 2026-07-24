@@ -81,12 +81,15 @@ function main() {
     console.log('');
     console.log('  用法:');
     console.log('    sense new --prompt "描述这张图片" --file photo.jpg');
+    console.log('    sense new --prompt-stdin --file photo.jpg < prompt.txt');
     console.log('    sense continue <session_id> --prompt "继续分析"');
     console.log('    sense list');
     console.log('    sense get <session_id>');
     console.log('    sense delete <session_id>');
     console.log('    sense delete --all');
     console.log('    sense status');
+    console.log('');
+    console.log('  --prompt-stdin: 从标准输入读取提示文本，避免 shell 引号转义问题');
     console.log('');
     console.log('  bridge.py 位置: ' + bridgePy);
     process.exit(0);
