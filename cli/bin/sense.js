@@ -47,6 +47,19 @@ function getSkillDir(bridgePy) {
   return dirname(bridgePy);
 }
 
+// 判断当前 bridge.py 的安装范围
+function detectScope(bridgePy) {
+  const home = process.env.HOME || process.env.USERPROFILE;
+  if (!home) return 'global'; // 保底
+
+  if (bridgePy === join(home, '.agents', 'skills', 'sense', 'bridge.py')) return 'global';
+  if (bridgePy === join(home, '.config', 'opencode', 'skills', 'sense', 'bridge.py')) return 'global';
+  if (bridgePy === join(process.cwd(), '.agents', 'skills', 'sense', 'bridge.py')) return 'project';
+  if (bridgePy === resolve(__dirname, '..', '..', 'skill', 'bridge.py')) return 'dev';   // 开发者模式（repo 内）
+  if (process.env.SENSE_BRIDGE) return 'custom';   // 环境变量指定的自定义路径
+  return 'custom';
+}
+
 function run(cmd, args) {
   return new Promise((resolve, reject) => {
     // Windows 下需 shell:true，因为 npm/npx 是 .cmd 文件
@@ -76,10 +89,17 @@ function showHelp(bridgePy) {
   console.log('    sense install             安装/修复 sense skill 本体');
   console.log('    sense update              更新 sense CLI + skill 到最新');
   console.log('');
+  console.log('  bridge.py 查找顺序:');
+  console.log('    1. SENSE_BRIDGE 环境变量');
+  console.log('    2. CLI 安装目录的上级 skill/');
+  console.log('    3. 当前项目 .agents/skills/sense/');
+  console.log('    4. 用户目录 .agents/skills/sense/');
+  console.log('    5. OpenCode 全局 skill 目录');
+  console.log('');
   console.log('  --prompt-stdin: 从标准输入读取提示文本，避免 shell 引号转义问题');
   if (bridgePy) {
     console.log('');
-    console.log('  bridge.py 位置: ' + bridgePy);
+    console.log('  当前使用: ' + bridgePy);
   }
   console.log('');
 }
@@ -99,21 +119,43 @@ async function main() {
   }
 
   if (args[0] === 'install') {
-    console.log('正在安装 sense skill...');
+    console.log('正在安装 sense skill（全局）...');
+    console.log('来源: https://github.com/feat-cat/sense.git');
     const code = await run('npx', ['skills', 'add', 'feat-cat/sense', '-y', '-g']);
     if (code === 0) console.log('✓ sense skill 安装完成');
+    else console.error('× 安装失败，可手动运行: npx skills add feat-cat/sense -y -g');
     process.exit(code);
   }
 
   if (args[0] === 'update') {
-    console.log('正在更新 sense skill...');
-    const code1 = await run('npx', ['skills', 'add', 'feat-cat/sense', '-y', '-g']);
-    if (code1 !== 0) process.exit(code1);
+    const bridgePy = findBridgePy();
+    const scope = bridgePy ? detectScope(bridgePy) : null;
+
+    // 选择正确的安装范围
+    let skillsArgs;
+    if (scope === 'project') {
+      skillsArgs = ['skills', 'add', 'feat-cat/sense', '-y'];
+      console.log('检测到项目级安装，更新项目 skill...');
+    } else if (scope === 'custom') {
+      console.error('× 当前 bridge.py 通过 SENSE_BRIDGE 或手动指定，无法自动更新');
+      console.error('  请手动更新: git pull 或重新 npx skills add feat-cat/sense');
+      process.exit(1);
+    } else {
+      skillsArgs = ['skills', 'add', 'feat-cat/sense', '-y', '-g'];
+      console.log('正在更新 sense skill（' + (scope || '全局') + '）...');
+    }
+
+    const code1 = await run('npx', skillsArgs);
+    if (code1 !== 0) {
+      console.error('× skill 更新失败，可手动运行: npx skills add feat-cat/sense -y' + (scope !== 'project' ? ' -g' : ''));
+      process.exit(code1);
+    }
     console.log('✓ sense skill 已更新');
 
     console.log('正在更新 sense CLI...');
     const code2 = await run('npm', ['install', '-g', '@feat-cat/sense']);
     if (code2 === 0) console.log('✓ sense CLI 已更新到最新');
+    else console.error('× CLI 更新失败，可手动运行: npm install -g @feat-cat/sense');
     process.exit(code2);
   }
 

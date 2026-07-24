@@ -1206,8 +1206,8 @@ def main():
     subparsers.add_parser('status', help='显示当前配置')
 
     # install / update
-    subparsers.add_parser('install', help='安装 sense CLI（npm i -g @feat-cat/sense）')
-    subparsers.add_parser('update', help='更新 sense CLI + skill 到最新版本')
+    subparsers.add_parser('install', help='安装 sense CLI（来源: npm @feat-cat/sense）')
+    subparsers.add_parser('update', help='更新 sense CLI + skill 到最新（来源: GitHub feat-cat/sense + npm）')
 
     args = parser.parse_args()
 
@@ -1226,6 +1226,7 @@ def main():
     # install / update 不需要 .env，提前处理
     if args.command == 'install':
         print("正在安装 sense CLI...")
+        print("来源: https://www.npmjs.com/package/@feat-cat/sense")
         ret = subprocess.run(['npm', 'install', '-g', '@feat-cat/sense'], shell=True).returncode
         if ret == 0:
             print("✓ sense CLI 安装完成，现在可以使用 sense <command> 了")
