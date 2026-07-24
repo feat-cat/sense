@@ -14,6 +14,7 @@ Sense — 多模态 AI 桥接工具
 
 import os
 import sys
+import subprocess
 import json
 import re
 import copy
@@ -1165,9 +1166,12 @@ def main():
   %(prog)s delete a1b2c3d4-e5f6-7890-abcd-ef1234567890
   %(prog)s delete --all
   %(prog)s status
+  %(prog)s install        # 安装 sense CLI（npm i -g @feat-cat/sense）
+  %(prog)s update         # 更新 sense CLI + skill 到最新
         """,
     )
     parser.add_argument('--verbose', '-v', action='store_true', help='显示详细信息（文件处理、token用量等）')
+    parser.add_argument('--version', '-V', action='store_true', help='显示版本信息')
 
     subparsers = parser.add_subparsers(dest='command', help='可用命令')
 
@@ -1211,6 +1215,10 @@ def main():
     global VERBOSE
     VERBOSE = args.verbose
 
+    if args.version:
+        print('@feat-cat/sense bridge (skill)')
+        sys.exit(0)
+
     if not args.command:
         parser.print_help()
         sys.exit(1)
@@ -1218,7 +1226,7 @@ def main():
     # install / update 不需要 .env，提前处理
     if args.command == 'install':
         print("正在安装 sense CLI...")
-        ret = os.system('npm install -g @feat-cat/sense')
+        ret = subprocess.run(['npm', 'install', '-g', '@feat-cat/sense'], shell=True).returncode
         if ret == 0:
             print("✓ sense CLI 安装完成，现在可以使用 sense <command> 了")
         else:
@@ -1226,17 +1234,17 @@ def main():
         sys.exit(ret)
     elif args.command == 'update':
         print("正在更新 sense skill...")
-        ret1 = os.system('npx skills add feat-cat/sense -y -g')
+        ret1 = subprocess.run(['npx', 'skills', 'add', 'feat-cat/sense', '-y', '-g'], shell=True).returncode
         if ret1 != 0:
             print("× skill 更新失败，请手动运行: npx skills add feat-cat/sense -y -g")
             sys.exit(ret1)
         print("✓ sense skill 已更新")
         print("正在更新 sense CLI...")
-        ret2 = os.system('npm update -g @feat-cat/sense')
+        ret2 = subprocess.run(['npm', 'install', '-g', '@feat-cat/sense'], shell=True).returncode
         if ret2 == 0:
             print("✓ sense CLI 已更新到最新")
         else:
-            print("× CLI 更新失败，请手动运行: npm update -g @feat-cat/sense")
+            print("× CLI 更新失败，请手动运行: npm install -g @feat-cat/sense")
         sys.exit(ret2)
 
     load_config()
